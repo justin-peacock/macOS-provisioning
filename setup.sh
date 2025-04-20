@@ -6,6 +6,11 @@ echo "Checking for Homebrew..."
 if ! command -v brew &>/dev/null; then
   echo "Installing Homebrew..."
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+  # Add Homebrew to the shell profile
+  echo "Adding Homebrew to the shell profile..."
+  echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "$HOME/.zprofile"
+  eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
 # Update and upgrade Homebrew
@@ -40,10 +45,11 @@ echo "Installing applications..."
 cask_apps=(
     1password
     alfred
+#    autodesk-fusion
     bambu-studio
     docker
     figma
-    firefox-developer-edition
+    firefox@developer-edition
     google-drive
     imageoptim
     inkscape
