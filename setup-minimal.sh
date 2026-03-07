@@ -28,23 +28,34 @@ brew install \
   wget \
   git \
   git-lfs \
-  git-flow \
-  git-extras \
   ssh-copy-id \
   composer \
-  node \
   cloudflared \
+  fnm \
   shfmt \
-  shellcheck
+  shellcheck \
+  htop \
+  tmux \
+  mtr \
+  nmap \
+  jq \
+  gh \
+  httpie
 success "CLI tools installed"
 
 git lfs install
 success "git-lfs activated"
 
+# Bootstrap Node LTS via fnm
+eval "$(fnm env)"
+fnm install --lts
+fnm use lts-latest
+success "Node LTS installed via fnm"
+
 # ── npm ───────────────────────────────────────────────────────────────────────
 
-info "Updating npm and installing global packages..."
-npm install -g npm gulp-cli yarn prettier
+info "Installing global npm packages..."
+npm install -g npm prettier
 success "npm packages installed"
 
 # ── Applications ──────────────────────────────────────────────────────────────
@@ -52,34 +63,9 @@ success "npm packages installed"
 info "Installing applications..."
 brew install --cask \
   1password \
-  adobe-creative-cloud \
-  alfred \
-  autodesk-fusion \
-  bambu-studio \
-  chatgpt \
-  discord \
-  docker \
-  elgato-camera-hub \
-  figma \
-  google-drive \
-  imageoptim \
-  inkscape \
   iterm2 \
-  logi-options+ \
-  microsoft-teams \
-  notion \
-  openinterminal \
-  private-internet-access \
-  raspberry-pi-imager \
   rectangle \
-  resilio-sync \
-  sequel-ace \
-  sip-app \
-  slack \
-  the-unarchiver \
-  transmit \
-  visual-studio-code \
-  zoom
+  visual-studio-code
 success "Applications installed"
 
 info "Cleaning up Homebrew..."
