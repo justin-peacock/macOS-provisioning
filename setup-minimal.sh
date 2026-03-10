@@ -6,71 +6,142 @@ info() { echo -e "\033[0;34m▶ $*\033[0m"; }
 success() { echo -e "\033[0;32m✔ $*\033[0m"; }
 error() { echo -e "\033[0;31m✖ $*\033[0m" >&2; }
 
+# ── Options ───────────────────────────────────────────────────────────────────
+
+DRY_RUN=0
+if [[ "${1:-}" == "--dry-run" ]]; then
+  DRY_RUN=1
+  info "Dry run enabled (no changes will be made)"
+fi
+
 # ── Homebrew ──────────────────────────────────────────────────────────────────
 
 info "Checking for Homebrew..."
 if ! command -v brew &>/dev/null; then
-  info "Installing Homebrew..."
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >>"$HOME/.zprofile"
-  eval "$(/opt/homebrew/bin/brew shellenv)"
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    error "Homebrew not found. Install Homebrew first, then re-run with --dry-run."
+    exit 1
+  else
+    info "Installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >>"$HOME/.zprofile"
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+  fi
 fi
 
-info "Updating Homebrew..."
-brew update
-brew upgrade --greedy
-success "Homebrew ready"
+if [[ "$DRY_RUN" -eq 0 ]]; then
+  info "Updating Homebrew..."
+  brew update
+  brew upgrade --greedy
+  success "Homebrew ready"
+fi
 
 # ── CLI tools ─────────────────────────────────────────────────────────────────
 
-info "Installing command-line tools..."
-brew install \
-  wget \
-  git \
-  git-lfs \
-  ssh-copy-id \
-  composer \
-  cloudflared \
-  fnm \
-  shfmt \
-  shellcheck \
-  htop \
-  tmux \
-  mtr \
-  nmap \
-  jq \
-  gh \
+FORMULAE=(
+  wget
+  git
+  git-lfs
+  gh
+  ssh-copy-id
+  cloudflared
+  fnm
+  railway
+  shfmt
+  shellcheck
+  htop
+  tmux
+  mtr
+  nmap
+  jq
   httpie
-success "CLI tools installed"
+)
 
-git lfs install
-success "git-lfs activated"
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  info "Checking formula availability..."
+  missing_formulae=()
+  for formula in "${FORMULAE[@]}"; do
+    if ! brew info --formula "$formula" &>/dev/null; then
+      missing_formulae+=("$formula")
+    fi
+  done
+else
+  info "Installing command-line tools..."
+  brew install "${FORMULAE[@]}"
+  success "CLI tools installed"
+
+  git lfs install
+  success "git-lfs activated"
+fi
 
 # Bootstrap Node LTS via fnm
-eval "$(fnm env)"
-fnm install --lts
-fnm use lts-latest
-success "Node LTS installed via fnm"
+if [[ "$DRY_RUN" -eq 0 ]]; then
+  eval "$(fnm env)"
+  fnm install --lts
+  fnm use lts-latest
+  success "Node LTS installed via fnm"
+fi
 
 # ── npm ───────────────────────────────────────────────────────────────────────
 
-info "Installing global npm packages..."
-npm install -g npm prettier
-success "npm packages installed"
+if [[ "$DRY_RUN" -eq 0 ]]; then
+  info "Installing global npm packages..."
+  npm install -g npm prettier
+  success "npm packages installed"
+fi
 
 # ── Applications ──────────────────────────────────────────────────────────────
 
-info "Installing applications..."
-brew install --cask \
-  1password \
-  iterm2 \
-  rectangle \
+CASKS=(
+  1password
+  iterm2
   visual-studio-code
-success "Applications installed"
+)
 
-info "Cleaning up Homebrew..."
-brew cleanup
-success "Homebrew cleaned up"
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  info "Checking cask availability..."
+  missing_casks=()
+  for cask in "${CASKS[@]}"; do
+    if ! brew info --cask "$cask" &>/dev/null; then
+      missing_casks+=("$cask")
+    fi
+  done
+else
+  info "Installing applications..."
+  brew install --cask "${CASKS[@]}"
+  success "Applications installed"
+
+  info "Cleaning up Homebrew..."
+  brew cleanup
+  success "Homebrew cleaned up"
+fi
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  if [[ ${#missing_formulae[@]} -gt 0 ]]; then
+    error "Missing formulae:"
+    for formula in "${missing_formulae[@]}"; do
+      echo "  - $formula"
+    done
+  else
+    success "All formulae found in Homebrew"
+  fi
+
+  if [[ ${#missing_casks[@]} -gt 0 ]]; then
+    error "Missing casks:"
+    for cask in "${missing_casks[@]}"; do
+      echo "  - $cask"
+    done
+  else
+    success "All casks found in Homebrew"
+  fi
+
+  if [[ ${#missing_formulae[@]} -gt 0 || ${#missing_casks[@]} -gt 0 ]]; then
+    exit 1
+  fi
+
+  success "Dry run complete"
+  exit 0
+fi
 
 # ── macOS defaults ────────────────────────────────────────────────────────────
 
