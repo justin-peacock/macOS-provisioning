@@ -1,6 +1,11 @@
 # macOS Provisioner
 
-This is a simple script to provision a macOS machine with the tools and applications I use on a daily basis. It installs homebrew, Oh My Zsh, and a list of applications and tools that I use. The script is designed to be run on a fresh installation of macOS.
+Provisioning scripts for a fresh macOS install or rebuild. There are two entry points:
+
+- `./setup.sh` for a full workstation setup
+- `./setup-minimal.sh` for a lighter setup, such as a MacBook Air
+
+Both scripts install Homebrew, development tools, applications, macOS defaults, VS Code settings, dotfiles, Oh My Zsh, and local development tooling including DDEV with OrbStack.
 
 ## Usage
 
@@ -16,16 +21,28 @@ Then, navigate to the repository directory.
 cd macOS-provisioning
 ```
 
-Finally, run the script.
+Finally, run one of the scripts.
 
 ```shell
 ./setup.sh
+./setup-minimal.sh
+```
+
+Use `--dry-run` to validate Homebrew package and cask availability without making changes.
+
+```shell
+./setup.sh --dry-run
+./setup-minimal.sh --dry-run
 ```
 
 ## What does it do?
 
 - Installs Homebrew
-- Installs applications using Homebrew
+- Installs formulae and casks with Homebrew
+- Installs DDEV, `mkcert`, and OrbStack for local development
+- Applies a small set of macOS defaults
+- Configures VS Code settings and extensions
+- Installs dotfiles
 - Installs Oh My Zsh
 
 ## Available tools
