@@ -55,8 +55,8 @@ fi
 # ── Brew Bundle ──────────────────────────────────────────────────────────────
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
-  info "Checking Brewfile contents..."
-  if brew bundle check --file="$SCRIPT_DIR/Brewfile" --verbose; then
+  info "Checking Brewfile.minimal contents..."
+  if brew bundle check --file="$SCRIPT_DIR/Brewfile.minimal" --verbose; then
     success "Dry run complete — all dependencies satisfied"
   else
     error "Dry run failed — missing dependencies listed above"
@@ -64,17 +64,30 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   fi
   exit 0
 else
-  info "Installing formulae and casks via Brewfile..."
-  brew bundle --file="$SCRIPT_DIR/Brewfile" --no-lock
+  info "Installing formulae and casks via Brewfile.minimal..."
+  brew bundle --file="$SCRIPT_DIR/Brewfile.minimal" --no-lock
   success "Brewfile installed"
 
   git lfs install
   success "git-lfs activated"
 fi
 
+# ── Node via fnm ─────────────────────────────────────────────────────────────
+
+info "Installing Node LTS via fnm..."
+eval "$(fnm env)"
+fnm install --lts
+fnm use lts-latest
+
+# Persist fnm initialization so Node is available in new shell sessions
+# shellcheck disable=SC2016
+FNM_ENV_LINE='eval "$(fnm env)"'
+grep -Fqx "$FNM_ENV_LINE" "$HOME/.zshrc" 2>/dev/null || echo "$FNM_ENV_LINE" >>"$HOME/.zshrc"
+success "Node LTS installed via fnm"
+
 # ── npm ───────────────────────────────────────────────────────────────────────
 
-info "Updating npm and installing global packages..."
+info "Installing global npm packages..."
 corepack enable
 npm install -g npm prettier
 success "npm packages installed"
