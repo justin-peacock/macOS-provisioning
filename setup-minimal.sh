@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Logging helpers
 info() { echo -e "\033[0;34m▶ $*\033[0m"; }
 success() { echo -e "\033[0;32m✔ $*\033[0m"; }
 error() { echo -e "\033[0;31m✖ $*\033[0m" >&2; }
 
-brew_shellenv_path() {
-  command -v brew
-}
+# Detect Homebrew path based on architecture
+if [[ "$(uname -m)" == "arm64" ]]; then
+  BREW_PREFIX="/opt/homebrew"
+else
+  BREW_PREFIX="/usr/local"
+fi
+BREW_BIN="$BREW_PREFIX/bin/brew"
 
 # ── Options ───────────────────────────────────────────────────────────────────
 
@@ -28,7 +34,6 @@ if ! command -v brew &>/dev/null; then
   else
     info "Installing Homebrew..."
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    BREW_BIN="$(brew_shellenv_path)"
     BREW_SHELLENV_LINE="eval \"\$(${BREW_BIN} shellenv)\""
     grep -Fqx "$BREW_SHELLENV_LINE" "$HOME/.zprofile" 2>/dev/null || echo "$BREW_SHELLENV_LINE" >>"$HOME/.zprofile"
     eval "$("$BREW_BIN" shellenv)"
@@ -38,145 +43,96 @@ fi
 if [[ "$DRY_RUN" -eq 0 ]]; then
   info "Updating Homebrew..."
   brew update
-  brew upgrade --greedy
+  brew upgrade
   success "Homebrew ready"
 fi
 
-# ── CLI tools ─────────────────────────────────────────────────────────────────
-
-FORMULAE=(
-  wget
-  git
-  git-lfs
-  gh
-  ssh-copy-id
-  cloudflared
-  fnm
-  mkcert
-  ddev/ddev/ddev
-  railway
-  shfmt
-  shellcheck
-  htop
-  tmux
-  mtr
-  nmap
-  jq
-  httpie
-)
+# ── Brew Bundle ──────────────────────────────────────────────────────────────
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
-  info "Checking formula availability..."
-  missing_formulae=()
-  for formula in "${FORMULAE[@]}"; do
-    if ! brew info --formula "$formula" &>/dev/null; then
-      missing_formulae+=("$formula")
-    fi
-  done
+  info "Checking Brewfile.minimal contents..."
+  brew bundle check --file="$SCRIPT_DIR/Brewfile.minimal" --verbose || true
+  success "Dry run complete"
+  exit 0
 else
-  info "Installing command-line tools..."
-  brew install "${FORMULAE[@]}"
-  success "CLI tools installed"
+  info "Installing formulae and casks via Brewfile.minimal..."
+  brew bundle --file="$SCRIPT_DIR/Brewfile.minimal" --no-lock
+  success "Brewfile installed"
 
   git lfs install
   success "git-lfs activated"
 fi
 
-# Bootstrap Node LTS via fnm
-if [[ "$DRY_RUN" -eq 0 ]]; then
-  eval "$(fnm env)"
-  fnm install --lts
-  fnm use lts-latest
-  success "Node LTS installed via fnm"
-fi
+# ── Node via fnm ─────────────────────────────────────────────────────────────
+
+info "Installing Node LTS via fnm..."
+eval "$(fnm env)"
+fnm install --lts
+fnm use lts-latest
+success "Node LTS installed via fnm"
 
 # ── npm ───────────────────────────────────────────────────────────────────────
 
-if [[ "$DRY_RUN" -eq 0 ]]; then
-  info "Installing global npm packages..."
-  npm install -g npm prettier
-  success "npm packages installed"
+info "Installing global npm packages..."
+corepack enable
+npm install -g npm prettier
+success "npm packages installed"
 
-  mkcert -install
-  success "Local development certificates configured"
-fi
-
-# ── Applications ──────────────────────────────────────────────────────────────
-
-CASKS=(
-  orbstack
-  visual-studio-code
-)
-
-if [[ "$DRY_RUN" -eq 1 ]]; then
-  info "Checking cask availability..."
-  missing_casks=()
-  for cask in "${CASKS[@]}"; do
-    if ! brew info --cask "$cask" &>/dev/null; then
-      missing_casks+=("$cask")
-    fi
-  done
-else
-  info "Installing applications..."
-  brew install --cask "${CASKS[@]}"
-  success "Applications installed"
-
-  info "Cleaning up Homebrew..."
-  brew cleanup
-  success "Homebrew cleaned up"
-fi
-
-if [[ "$DRY_RUN" -eq 1 ]]; then
-  if [[ ${#missing_formulae[@]} -gt 0 ]]; then
-    error "Missing formulae:"
-    for formula in "${missing_formulae[@]}"; do
-      echo "  - $formula"
-    done
-  else
-    success "All formulae found in Homebrew"
-  fi
-
-  if [[ ${#missing_casks[@]} -gt 0 ]]; then
-    error "Missing casks:"
-    for cask in "${missing_casks[@]}"; do
-      echo "  - $cask"
-    done
-  else
-    success "All casks found in Homebrew"
-  fi
-
-  if [[ ${#missing_formulae[@]} -gt 0 || ${#missing_casks[@]} -gt 0 ]]; then
-    exit 1
-  fi
-
-  success "Dry run complete"
-  exit 0
-fi
+mkcert -install
+success "Local development certificates configured"
 
 # ── macOS defaults ────────────────────────────────────────────────────────────
 
 info "Configuring macOS defaults..."
 
-# Finder: show hidden files, expand save/print dialogs, skip app quarantine prompt
+# Finder: show hidden files, path bar, status bar, expand save/print dialogs
 defaults write com.apple.finder AppleShowAllFiles -bool true
+defaults write com.apple.finder ShowPathbar -bool true
+defaults write com.apple.finder ShowStatusBar -bool true
+defaults write com.apple.finder FXPreferredViewStyle -string "Nlsv"
 defaults write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true
+defaults write NSGlobalDomain NSNavPanelExpandedStateForSaveMode2 -bool true
 defaults write NSGlobalDomain PMPrintingExpandedStateForPrint -bool true
+defaults write NSGlobalDomain PMPrintingExpandedStateForPrint2 -bool true
 defaults write com.apple.LaunchServices LSQuarantine -bool false
 
-# Keyboard: faster key repeat
+# Finder: show all file extensions, disable extension change warning
+defaults write NSGlobalDomain AppleShowAllExtensions -bool true
+defaults write com.apple.finder FXEnableExtensionChangeWarning -bool false
+
+# Finder: avoid .DS_Store on network and USB volumes
+defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true
+defaults write com.apple.desktopservices DSDontWriteUSBStores -bool true
+
+# Finder: show ~/Library
+chflags nohidden ~/Library
+
+# Keyboard: faster key repeat, disable auto-correct and smart substitutions
 defaults write NSGlobalDomain KeyRepeat -int 2
 defaults write NSGlobalDomain InitialKeyRepeat -int 15
+defaults write NSGlobalDomain NSAutomaticSpellingCorrectionEnabled -bool false
+defaults write NSGlobalDomain NSAutomaticQuoteSubstitutionEnabled -bool false
+defaults write NSGlobalDomain NSAutomaticDashSubstitutionEnabled -bool false
+defaults write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false
+defaults write NSGlobalDomain NSAutomaticPeriodSubstitutionEnabled -bool false
 
-# Dock: auto-hide, no recent apps
+# Dock: auto-hide, no recent apps, minimize with scale effect
 defaults write com.apple.dock autohide -bool true
 defaults write com.apple.dock show-recents -bool false
+defaults write com.apple.dock mineffect -string "scale"
 
-# Screenshots: save to Desktop as PNG without drop shadow
-defaults write com.apple.screencapture location -string "$HOME/Desktop"
+# Screenshots: PNG, no shadow, copy to clipboard
 defaults write com.apple.screencapture type -string "png"
 defaults write com.apple.screencapture disable-shadow -bool true
+# Cmd+Shift+3/4 saves to file; Cmd+Ctrl+Shift+3/4 copies to clipboard.
+# To default to clipboard, open Screenshot (Cmd+Shift+5) → Options → Save to Clipboard.
+# This preference is remembered per-user but not scriptable via defaults.
 
-killall Finder Dock 2>/dev/null || true
+# Keyboard shortcut: Ctrl+Shift+T → "New Terminal at Folder" in Finder
+# shellcheck disable=SC2016
+defaults write com.apple.finder NSUserKeyEquivalents -dict-add "New Terminal at Folder" '^$t'
+
+killall Finder Dock SystemUIServer 2>/dev/null || true
 success "macOS defaults configured"
 
 # ── VS Code ───────────────────────────────────────────────────────────────────
@@ -186,8 +142,9 @@ VSCODE_SETTINGS_DIR="$HOME/Library/Application Support/Code/User"
 VSCODE_SETTINGS_FILE="$VSCODE_SETTINGS_DIR/settings.json"
 mkdir -p "$VSCODE_SETTINGS_DIR"
 
-if [ -f "$VSCODE_SETTINGS_FILE" ]; then
-  python3 - "$VSCODE_SETTINGS_FILE" <<'PY'
+[ -f "$VSCODE_SETTINGS_FILE" ] || echo '{}' >"$VSCODE_SETTINGS_FILE"
+
+python3 - "$VSCODE_SETTINGS_FILE" <<'PY'
 import json
 import shutil
 import sys
@@ -223,30 +180,6 @@ except json.JSONDecodeError:
 settings.update(managed_settings)
 settings_file.write_text(json.dumps(settings, indent=2) + "\n")
 PY
-else
-  cat >"$VSCODE_SETTINGS_FILE" <<'EOF'
-{
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "editor.formatOnSave": true,
-  "editor.tabSize": 2,
-  "editor.insertSpaces": true,
-  "editor.rulers": [80, 120],
-  "editor.wordWrap": "off",
-  "editor.minimap.enabled": false,
-  "editor.bracketPairColorization.enabled": true,
-  "files.trimTrailingWhitespace": true,
-  "files.insertFinalNewline": true,
-  "files.trimFinalNewlines": true,
-  "files.autoSave": "onFocusChange",
-  "git.autofetch": true,
-  "git.confirmSync": false,
-  "workbench.startupEditor": "none",
-  "[shellscript]": {
-    "editor.defaultFormatter": "foxundermoon.shell-format"
-  }
-}
-EOF
-fi
 
 if command -v code &>/dev/null; then
   code --install-extension esbenp.prettier-vscode
