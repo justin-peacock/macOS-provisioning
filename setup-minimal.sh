@@ -104,8 +104,6 @@ fi
 # ── Applications ──────────────────────────────────────────────────────────────
 
 CASKS=(
-  1password
-  iterm2
   orbstack
   visual-studio-code
 )
@@ -263,14 +261,5 @@ if [ ! -d "$HOME/.oh-my-zsh" ]; then
   RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 fi
 success "Oh My Zsh ready"
-
-# ── Dotfiles ──────────────────────────────────────────────────────────────────
-
-info "Installing dotfiles..."
-if [ ! -d "$HOME/dotfiles" ]; then
-  git clone https://github.com/justin-peacock/dotfiles.git "$HOME/dotfiles"
-fi
-bash "$HOME/dotfiles/install.sh"
-success "Dotfiles installed"
 
 success "Setup complete! Restart your terminal to apply all changes."
