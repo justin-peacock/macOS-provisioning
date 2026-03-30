@@ -65,7 +65,7 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   exit 0
 else
   info "Installing formulae and casks via Brewfile..."
-  brew bundle --file="$SCRIPT_DIR/Brewfile" --no-lock
+  brew bundle --file="$SCRIPT_DIR/Brewfile"
   success "Brewfile installed"
 
   git lfs install
