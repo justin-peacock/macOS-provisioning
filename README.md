@@ -5,7 +5,7 @@ Provisioning scripts for a fresh macOS install or rebuild. There are two entry p
 - `./setup.sh` for a full workstation setup
 - `./setup-minimal.sh` for a lighter setup, such as a MacBook Air
 
-Both scripts install Homebrew, development tools, applications, macOS defaults, VS Code settings, dotfiles, Oh My Zsh, and local development tooling including DDEV with OrbStack.
+Both scripts install Homebrew, development tools and applications (via Brewfiles), macOS defaults, VS Code settings, and Oh My Zsh. The full setup also installs dotfiles.
 
 ## Usage
 
@@ -28,7 +28,7 @@ Finally, run one of the scripts.
 ./setup-minimal.sh
 ```
 
-Use `--dry-run` to validate Homebrew package and cask availability without making changes.
+Use `--dry-run` to validate the Brewfile without making changes. It exits non-zero if any dependencies are missing.
 
 ```shell
 ./setup.sh --dry-run
@@ -37,71 +37,38 @@ Use `--dry-run` to validate Homebrew package and cask availability without makin
 
 ## What does it do?
 
-- Installs Homebrew
-- Installs formulae and casks with Homebrew
-- Installs DDEV, `mkcert`, and OrbStack for local development
-- Applies a small set of macOS defaults
-- Configures VS Code settings and extensions
-- Installs dotfiles
+- Installs Homebrew (detects ARM vs Intel path automatically)
+- Installs formulae and casks via `brew bundle` with a Brewfile
+- Installs global npm packages and configures `corepack`
+- Applies macOS defaults (Finder, Dock, keyboard, screenshots, etc.)
+- Merges managed VS Code settings (preserves existing user settings)
 - Installs Oh My Zsh
+- Installs dotfiles (full setup only)
 
-## Available tools
+## Adding tools or apps
 
-### Browsers
+Add a line to the relevant Brewfile:
 
-- [Firefox Developer Edition](https://www.mozilla.org/en-US/firefox/developer/)
+```ruby
+brew "formula-name"    # CLI tool
+cask "cask-name"       # GUI application
+```
 
-### Editors
-
-- [PHPStorm](https://www.jetbrains.com/phpstorm/)
-- [VSCodium](https://vscodium.com/)
-- [Figma](https://www.figma.com/)
-
-### Development Tools
-
-- [Composer](https://getcomposer.org/)
-- [Docker](https://www.docker.com/)
-- [Node.js](https://nodejs.org/)
-- [Yarn](https://yarnpkg.com/)
-- [Gulp](https://gulpjs.com/)
-
-### Utilities
-
-- [1Password](https://1password.com/)
-- [iTerm2](https://iterm2.com/)
-- [Sequel Ace](https://sequel-ace.com/)
-- [SourceTree](https://www.sourcetreeapp.com/)
-- [Slack](https://slack.com/)
-- [Rectangle](https://rectangleapp.com/)
-- [The Unarchiver](https://theunarchiver.com/)
+Verify names at [formulae.brew.sh](https://formulae.brew.sh/).
 
 ## Recommended Plugins for Oh My Zsh
 
-- [1Password](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/1password) this plugin adds 1Password functionality to oh-my-zsh.
-- [brew](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/brew) the plugin adds several aliases for common brew commands.
-- [composer](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/composer) this plugin provides completion for composer, as well as aliases for frequent composer commands. It also adds Composer's global binaries to the PATH, using Composer if available.
-- [docker](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/docker) this plugin adds auto-completion and aliases for docker.
-- [docker-compose](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/docker-compose) this plugin provides completion for docker-compose as well as some aliases for frequent docker-compose commands.
-- [drush](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/drush) this plugin adds aliases and functions for Drush, a command-line shell and Unix scripting interface for Drupal. It also adds completion for the `drush` command.
-- [git](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/git) the git plugin provides many aliases and a few useful functions.
-- [npm](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/npm) the npm plugin provides completion as well as adding many useful aliases.
-- [yarn](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/yarn) this plugin adds completion for the Yarn package manager, as well as some aliases for common Yarn commands.
+- [brew](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/brew) — aliases for common brew commands
+- [composer](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/composer) — completion and aliases for Composer
+- [docker](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/docker) — auto-completion and aliases for Docker
+- [docker-compose](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/docker-compose) — completion and aliases for docker-compose
+- [git](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/git) — many aliases and useful functions for git
+- [npm](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/npm) — completion and aliases for npm
 
 ### Adding Plugins
 
-To add plugins to Oh My Zsh, edit the `~/.zshrc` file.
+Edit `~/.zshrc` and add plugin names to the `plugins` array:
 
 ```shell
-nano ~/.zshrc
-```
-
-Then add the plugin name to the `plugins` array.
-
-```shell
-# Which plugins would you like to load?
-# Standard plugins can be found in $ZSH/plugins/
-# Custom plugins may be added to $ZSH_CUSTOM/plugins/
-# Example format: plugins=(rails git textmate ruby lighthouse)
-# Add wisely, as too many plugins slow down shell startup.
-plugins=(git brew composer docker docker-compose drush npm yarn 1password)
+plugins=(git brew composer docker docker-compose npm)
 ```

@@ -27,6 +27,11 @@ fi
 # ── Homebrew ──────────────────────────────────────────────────────────────────
 
 info "Checking for Homebrew..."
+# If brew exists at the expected path but isn't on PATH, activate it
+if [[ -x "$BREW_BIN" ]] && ! command -v brew &>/dev/null; then
+  eval "$("$BREW_BIN" shellenv)"
+fi
+
 if ! command -v brew &>/dev/null; then
   if [[ "$DRY_RUN" -eq 1 ]]; then
     error "Homebrew not found. Install Homebrew first, then re-run with --dry-run."
@@ -51,8 +56,12 @@ fi
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
   info "Checking Brewfile.minimal contents..."
-  brew bundle check --file="$SCRIPT_DIR/Brewfile.minimal" --verbose || true
-  success "Dry run complete"
+  if brew bundle check --file="$SCRIPT_DIR/Brewfile.minimal" --verbose; then
+    success "Dry run complete — all dependencies satisfied"
+  else
+    error "Dry run failed — missing dependencies listed above"
+    exit 1
+  fi
   exit 0
 else
   info "Installing formulae and casks via Brewfile.minimal..."
@@ -69,6 +78,11 @@ info "Installing Node LTS via fnm..."
 eval "$(fnm env)"
 fnm install --lts
 fnm use lts-latest
+
+# Persist fnm initialization so Node is available in new shell sessions
+# shellcheck disable=SC2016
+FNM_ENV_LINE='eval "$(fnm env)"'
+grep -Fqx "$FNM_ENV_LINE" "$HOME/.zshrc" 2>/dev/null || echo "$FNM_ENV_LINE" >>"$HOME/.zshrc"
 success "Node LTS installed via fnm"
 
 # ── npm ───────────────────────────────────────────────────────────────────────
@@ -144,42 +158,38 @@ mkdir -p "$VSCODE_SETTINGS_DIR"
 
 [ -f "$VSCODE_SETTINGS_FILE" ] || echo '{}' >"$VSCODE_SETTINGS_FILE"
 
-python3 - "$VSCODE_SETTINGS_FILE" <<'PY'
-import json
-import shutil
-import sys
-from pathlib import Path
+# Back up and reset if settings file contains invalid JSON
+if ! jq empty "$VSCODE_SETTINGS_FILE" 2>/dev/null; then
+  cp "$VSCODE_SETTINGS_FILE" "$VSCODE_SETTINGS_FILE.bak"
+  echo '{}' >"$VSCODE_SETTINGS_FILE"
+fi
 
-settings_file = Path(sys.argv[1])
-managed_settings = {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.formatOnSave": True,
-    "editor.tabSize": 2,
-    "editor.insertSpaces": True,
-    "editor.rulers": [80, 120],
-    "editor.wordWrap": "off",
-    "editor.minimap.enabled": False,
-    "editor.bracketPairColorization.enabled": True,
-    "files.trimTrailingWhitespace": True,
-    "files.insertFinalNewline": True,
-    "files.trimFinalNewlines": True,
-    "files.autoSave": "onFocusChange",
-    "git.autofetch": True,
-    "git.confirmSync": False,
-    "workbench.startupEditor": "none",
-    "[shellscript]": {"editor.defaultFormatter": "foxundermoon.shell-format"},
+MANAGED_SETTINGS=$(cat <<'EOF'
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.rulers": [80, 120],
+  "editor.wordWrap": "off",
+  "editor.minimap.enabled": false,
+  "editor.bracketPairColorization.enabled": true,
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "files.autoSave": "onFocusChange",
+  "git.autofetch": true,
+  "git.confirmSync": false,
+  "workbench.startupEditor": "none",
+  "[shellscript]": {
+    "editor.defaultFormatter": "foxundermoon.shell-format"
+  }
 }
+EOF
+)
 
-try:
-    settings = json.loads(settings_file.read_text())
-except json.JSONDecodeError:
-    backup = settings_file.with_suffix(".json.bak")
-    shutil.copy2(settings_file, backup)
-    settings = {}
-
-settings.update(managed_settings)
-settings_file.write_text(json.dumps(settings, indent=2) + "\n")
-PY
+jq --argjson managed "$MANAGED_SETTINGS" '. + $managed' "$VSCODE_SETTINGS_FILE" >"$VSCODE_SETTINGS_FILE.tmp" \
+  && mv "$VSCODE_SETTINGS_FILE.tmp" "$VSCODE_SETTINGS_FILE"
 
 if command -v code &>/dev/null; then
   code --install-extension esbenp.prettier-vscode

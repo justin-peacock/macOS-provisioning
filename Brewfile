@@ -18,6 +18,7 @@ brew "shfmt"
 brew "shellcheck"
 brew "speedtest-cli"
 brew "mysql-client"
+brew "jq"
 
 # ── Applications ─────────────────────────────────────────────────────────────
 cask "adobe-creative-cloud"
