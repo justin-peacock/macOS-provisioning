@@ -88,7 +88,6 @@ success "Node LTS installed via fnm"
 # ── npm ───────────────────────────────────────────────────────────────────────
 
 info "Installing global npm packages..."
-corepack enable
 npm install -g npm prettier
 success "npm packages installed"
 

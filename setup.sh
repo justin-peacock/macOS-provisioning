@@ -75,7 +75,6 @@ fi
 # ── npm ───────────────────────────────────────────────────────────────────────
 
 info "Updating npm and installing global packages..."
-corepack enable
 npm install -g npm prettier
 success "npm packages installed"
 
